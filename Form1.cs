@@ -23,8 +23,6 @@ namespace WindowsFormsApplication1
         {
             InitializeComponent();
 
-            
-
             DataTable table1 = new DataTable();
             table1.Columns.Add("Id");
             table1.Columns.Add("Name");
@@ -39,8 +37,6 @@ namespace WindowsFormsApplication1
             set.Tables.Add(table1);
             
             gridControl1.DataSource = set.Tables[0];
-            
-
             gridControl1.DoubleClick += new EventHandler(gridControl1_DoubleClick);
 
             table2 = new DataTable();
@@ -61,17 +57,12 @@ namespace WindowsFormsApplication1
             int rowNum = GetRowNum(intervalArr, e);
 
             object[] item = ((DataTable)gc.DataSource).Rows[rowNum].ItemArray;
-            
-            //PopulateSlaveGridControl(item);
-
-
             DataSet.AddObject(item, true);
         }
 
         private void PopulateSlaveGridControl(object[] item)
         {
             table2.Rows.Add(item[0], item[1], item[2], item[3], item[4]);
-
             System.Data.DataSet set2 = new System.Data.DataSet();
             set2.Tables.Add(table2);
             gridControl2.DataSource = set2.Tables[0];
@@ -101,84 +92,82 @@ namespace WindowsFormsApplication1
         }
     }
 
-     class SelectionDataSource : System.ComponentModel.BindingList<oda.xmlElement>, System.ComponentModel.ITypedList
-        {
+    class SelectionDataSource : System.ComponentModel.BindingList<oda.xmlElement>, System.ComponentModel.ITypedList
+	{
+		#region ITypedList Members
+		PropertyDescriptorCollection list;
+		public PropertyDescriptorCollection GetItemProperties(PropertyDescriptor[] listAccessors)
+		{
+			if (list != null)
+				return list;
+			list = new PropertyDescriptorCollection(listAccessors);
+			list.Add(new oda.StringFieldDescriptor("name"));
+			list.Add(new oda.NumericFieldDescriptor("count"));
+			return list;
+		}
 
-            #region ITypedList Members
-            PropertyDescriptorCollection list;
-            public PropertyDescriptorCollection GetItemProperties(PropertyDescriptor[] listAccessors)
-            {
-                if (list != null)
-                    return list;
-                list = new PropertyDescriptorCollection(listAccessors);
-                list.Add(new oda.StringFieldDescriptor("name"));
-                list.Add(new oda.NumericFieldDescriptor("count"));
-                return list;
-            }
+		public string GetListName(PropertyDescriptor[] listAccessors)
+		{
+			return "";
+		}
 
-            public string GetListName(PropertyDescriptor[] listAccessors)
-            {
-                return "";
-            }
+		#endregion
+		oda.Class Class;
+		oda.xmlDocument Doc;
 
-            #endregion
-            oda.Class Class;
-            oda.xmlDocument Doc;
+		internal SelectionDataSource(oda.Class cls)
+		{
+			Class = cls;
+			ObjectList = new oda.ObjectList(Class);
+			Doc = new oda.xmlDocument();
+			Doc.LoadXML("<X/>");
+		}
+		internal oda.ObjectList ObjectList;
+		internal void ClearDataSet()
+		{
+			try
+			{
+				Clear();
+				ObjectList.Clear();
+				Doc.Root.RemoveNodes("*");
+			}
+			catch { }
+		}
 
-            internal SelectionDataSource(oda.Class cls)
-            {
-                Class = cls;
-                ObjectList = new oda.ObjectList(Class);
-                Doc = new oda.xmlDocument();
-                Doc.LoadXML("<X/>");
-            }
-            internal oda.ObjectList ObjectList;
-            internal void ClearDataSet()
-            {
-                try  
-                {
-                    Clear();
-                    ObjectList.Clear();
-                    Doc.Root.RemoveNodes("*");
-                }
-                catch { }
-            }
+		internal void AddObject(object[] obj, bool show_count)
+		{
+			decimal cnt = 1;
+			if (show_count)
+				cnt = oda.Dialog.InputNumBox("Введите количество", cnt);
+			if (cnt == 0)
+				return;
+			oda.xmlElement el = Doc.Root.SelectElement("R[@oid='" + obj[0] + "']");
+			if (el == null)
+			{
+				el = Doc.Root.CreateChildElement("R");
+				el.SetAttribute("oid", obj[0]);
+				el.SetAttribute("name", obj[1]);
+				el.SetAttribute("count", cnt);
+				Add(el);
+			}
+			else
+			{
+				el.SetAttribute("count", el.GetInt("count") + cnt);
+				ResetItem(IndexOf(el));
+			}
+		}
 
-            internal void AddObject(object[] obj, bool show_count)
-            {
-                decimal cnt = 1;
-                if (show_count)
-                    cnt = oda.Dialog.InputNumBox("Введите количество", cnt);
-                if (cnt == 0)
-                    return;
-                oda.xmlElement el = Doc.Root.SelectElement("R[@oid='" + obj[0] + "']");
-                if (el == null)
-                {
-                    el = Doc.Root.CreateChildElement("R");
-                    el.SetAttribute("oid", obj[0]);
-                    el.SetAttribute("name", obj[1]);
-                    el.SetAttribute("count", cnt);
-                    Add(el);
-                }
-                else
-                {
-                    el.SetAttribute("count", el.GetInt("count") + cnt);
-                    ResetItem(IndexOf(el));
-                }
-            }
-
-            internal void RemoveDataItem(int p)
-            {
-                try
-                {
-                    oda.xmlElement el = this.Items[p];
-                    string oid = el.GetAttribute("oid");
-                    // int i = ObjectList.IndexOf(oid);
-                    ObjectList.Remove(oid);
-                    el.Remove();
-                    RemoveAt(p);
-                }
-                catch { }
-            }
-        }
+		internal void RemoveDataItem(int p)
+		{
+			try
+			{
+				oda.xmlElement el = this.Items[p];
+				string oid = el.GetAttribute("oid");
+				ObjectList.Remove(oid);
+				el.Remove();
+				RemoveAt(p);
+			}
+			catch { }
+		}
+	}
 }
